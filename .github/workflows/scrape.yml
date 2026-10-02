@@ -1,0 +1,76 @@
+name: Scrape Classroom Finder into private R2
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Resume missing/failed courses or refresh all
+        type: choice
+        options: [resume, refresh]
+        default: resume
+      smoke:
+        description: Test a small batch without publishing
+        type: boolean
+        default: true
+  schedule:
+    - cron: '17 8 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: course-data-r2-writers
+  cancel-in-progress: false
+jobs:
+  scrape:
+    # Enable only after the actual hosted-browser smoke run succeeds.
+    if: vars.SCRAPER_ENABLED == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        dataset: [fall-2026]
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    environment: scraper-staging
+    env:
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      AWS_RETRY_MODE: standard
+      AWS_MAX_ATTEMPTS: '4'
+      DATASET: ${{ matrix.dataset }}
+      SCRAPE_MODE: ${{ inputs.mode || 'refresh' }}
+      SMOKE: ${{ inputs.smoke }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: expirimental
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
+      - run: pip install -r scraper/requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Restore durable private checkpoint
+        run: |
+          mkdir -p private-data
+          cp public/data/fall-2026.json private-data/fall-2026.json
+          python scripts/cloud_data.py restore --dataset "$DATASET"
+      - name: Run bounded scraper
+        run: |
+          args=()
+          if [ "$SCRAPE_MODE" = refresh ]; then args+=(--refresh); fi
+          if [ "$SMOKE" = true ]; then args+=(--limit 3 --hours 0.25); fi
+          python scripts/run_cloud_scrape.py --dataset "$DATASET" "${args[@]}"
+      - name: Retain final checkpoint even on failure
+        if: always()
+        run: |
+          if [ -f private-data/$DATASET.json ]; then
+            python scripts/cloud_data.py checkpoint --dataset "$DATASET"
+          fi
+      - name: Publish only a complete successful dataset
+        if: success() && inputs.smoke != true && vars.SCRAPER_PUBLISH_ENABLED == 'true'
+        run: python scripts/cloud_data.py publish --dataset "$DATASET"
+
