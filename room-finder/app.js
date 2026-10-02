@@ -43,3 +43,5 @@ $('dayClasses').addEventListener('click',e=>{const row=e.target.closest('[data-d
 setInterval(()=>{if(live&&!document.hidden)now();},30000);document.addEventListener('visibilitychange',()=>{if(live&&!document.hidden)now();});
 
 setInterval(()=>{if(live&&!document.hidden&&!$('reload').disabled)load();},300000);
+
+const phoneFilters=window.matchMedia("(max-width:700px)");function arrangeFilters(){$("moreFilters").open=!phoneFilters.matches;}phoneFilters.addEventListener("change",arrangeFilters);arrangeFilters();
