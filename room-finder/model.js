@@ -97,6 +97,7 @@ export function filterRooms(rooms,{query='',roomQuery='',building='all',campus='
 export function dailyClasses(rooms,{date,time,query='',roomQuery='',building='all',campus='all',state='all',group='time'}){
  const at=minutes(time),items=[];
  for(const room of rooms){if((building!=='all'&&room.building!==building)||(campus!=='all'&&campusOfRoom(room)!==campus)||!room.name.toLowerCase().includes(roomQuery.trim().toLowerCase()))continue;
- for(const m of room.meetings){if(!occursOn(m,date)||!matchesCourse(m,query))continue;const phase=at!==null&&m.start<=at&&at<m.end?'active':at!==null&&m.start>at?'upcoming':'ended';if(state!=='all'&&phase!==state)continue;items.push({...m,roomId:room.id,building:room.building,phase});}}
+ for(const m of room.meetings){if(!occursOn(m,date)||!matchesCourse(m,query))continue;const phase=at===null?'scheduled':at!==null&&m.start<=at&&at<m.end?'active':at!==null&&m.start>at?'upcoming':'ended';if(state!=='all'&&phase!==state)continue;items.push({...m,roomId:room.id,building:room.building,phase});}}
  return items.sort((a,b)=>(group==='building'?a.building.localeCompare(b.building):group==='course'?a.code.localeCompare(b.code):0)||a.start-b.start||a.room.localeCompare(b.room)||String(a.classNumber).localeCompare(String(b.classNumber)));
 }
+

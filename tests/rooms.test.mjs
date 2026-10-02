@@ -34,3 +34,5 @@ test('campus filters keep unknown buildings out of Denton and preserve occupancy
 
 test('daily class organization follows dates, campus and current meeting boundaries',()=>{const rs=indexRooms(fixture).rooms;const active=dailyClasses(rs,{date:'2026-09-29',time:'09:30',state:'active'});assert.equal(active.length,1);assert.equal(active[0].code,'ENGL 1310');assert.equal(dailyClasses(rs,{date:'2026-09-29',time:'10:00',state:'active'}).length,0);assert.equal(dailyClasses(rs,{date:'2026-09-29',time:'10:00',state:'upcoming',query:'MATH'}).length,2);assert.equal(dailyClasses(rs,{date:'2026-09-29',time:'09:30',campus:'frisco'}).length,0);assert.equal(dailyClasses(rs,{date:'2026-09-27',time:'09:30'}).length,0);});
 
+
+test('a day without a selected time never labels every class finished',()=>{const list=dailyClasses(indexRooms(fixture).rooms,{date:'2026-09-29',time:''});assert.ok(list.length);assert.ok(list.every(m=>m.phase==='scheduled'));});
