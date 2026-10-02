@@ -1,0 +1,27 @@
+name: Classroom Finder checks
+on:
+  push:
+    branches: [main, expirimental]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install -r scraper/requirements.txt
+      - run: python -m unittest discover -s tests -v
+        env:
+          PYTHONPATH: scraper
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
